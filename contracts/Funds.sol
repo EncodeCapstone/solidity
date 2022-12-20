@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0 <0.9.0;
 
+import {RewardToken} from "./Token.sol";
+
 contract Funds {
-    // Use Ownable
     address public admin; // Admin of all funds
+
+    uint256 public FundCounter; // Auto id counter
+    RewardToken public rewardTokenContract; // Token contract
 
     struct Fund {
         uint256 fundID; // Unique identifier of fund
@@ -12,10 +16,11 @@ contract Funds {
         address fundOwner; // Owner of fund
         address receiver; // Receiver address of funds
         uint256 totalFunded; // Total funding received
+        string description; // Fund description
     }
 
     Fund[] public funds; // List of all funds
-    mapping(uint256 => Fund) private fundByID; // Mapping of ID to specific fund
+    //mapping(uint256 => Fund) private fundByID; // Mapping of ID to specific fund
     mapping(address => uint256) private fundOwners; // Mapping of owner address to specific fund
     mapping(address => mapping(uint256 => uint256)) private funders; // Person x funds fundID y, z amount
 
@@ -25,12 +30,12 @@ contract Funds {
     }
 
     modifier onlyFundOwner(uint256 _fundID) {
-        require(msg.sender == fundByID[_fundID].fundOwner, "Not the fund owner");
+        require(msg.sender == funds[_fundID].fundOwner, "Not the fund owner");
         _;
     }
 
     modifier onlyAdminOrFundOwner(uint256 _fundID) {
-        require(msg.sender == fundByID[_fundID].fundOwner || msg.sender == admin, "Not the right access");
+        require(msg.sender == funds[_fundID].fundOwner || msg.sender == admin, "Not the right access");
         _;
     }
 
@@ -40,32 +45,35 @@ contract Funds {
     }
 
     constructor() {
+        rewardTokenContract = new RewardToken("CHARITY", "TY");
         admin = msg.sender;
+        FundCounter = 0;
     }
 
     /// @dev Initializes new fund that is open for funding starting with 0 total funds and where msg.sender is the fund owner
-    /// @param _fundID Unique ID of fund
     /// @param _name Name of fund
     /// @param _receiver Receiving address of funding for this fund
-    function createfund(uint256 _fundID, string memory _name, address _receiver) external {
-        funds.push(Fund(_fundID, _name, true, msg.sender, _receiver, 0));
+    function createfund(string memory _name, address _receiver, string memory description) external {
+        funds.push(Fund(FundCounter, _name, true, msg.sender, _receiver, 0, description));
+        fundOwners[msg.sender] = FundCounter;
+        FundCounter += 1;
     }
 
     /// @param _fundID Unique ID of fund
     function donateToFund(uint256 _fundID) public payable {
-        Fund storage fund = fundByID[_fundID];
+        Fund storage fund = funds[_fundID];
         fund.totalFunded += msg.value;
         funders[msg.sender][_fundID] += msg.value;
-        // Mint NFT for donator
+        rewardTokenContract.mint(msg.sender, msg.value);
     }
 
     function endFund(uint256 _fundID) external onlyAdminOrFundOwner(_fundID) fundActive(_fundID) {
-        fundByID[_fundID].fundActive = false;
+        funds[_fundID].fundActive = false;
         withdrawFunding(_fundID);
     }
 
     function withdrawFunding(uint256 _fundID) internal {
-        Fund storage fund = fundByID[_fundID];
+        Fund storage fund = funds[_fundID];
         (bool sent, bytes memory data) = fund.receiver.call{value: fund.totalFunded}("");
         require(sent, "Failed to send Ether");
     }
@@ -79,4 +87,8 @@ contract Funds {
         require(funders[msg.sender][_fundID] > 0, "No funds found");
         return funders[msg.sender][_fundID];
     }
+
+    function getTokenBalanceOf() external view returns (uint256) {
+        return rewardTokenContract.balanceOf(msg.sender);
+    } 
 }
