@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0 <0.9.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {RewardToken} from "./Token.sol";
 
-contract Funds {
-    address public admin; // Admin of all funds
-
+contract Funds is Ownable {
     uint256 public FundCounter; // Auto id counter
     RewardToken public rewardTokenContract; // Token contract
 
@@ -20,14 +19,8 @@ contract Funds {
     }
 
     Fund[] public funds; // List of all funds
-    //mapping(uint256 => Fund) private fundByID; // Mapping of ID to specific fund
     mapping(address => uint256) private fundOwners; // Mapping of owner address to specific fund
     mapping(address => mapping(uint256 => uint256)) private funders; // Person x funds fundID y, z amount
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Not owner");
-        _;
-    }
 
     modifier onlyFundOwner(uint256 _fundID) {
         require(msg.sender == funds[_fundID].fundOwner, "Not the fund owner");
@@ -35,7 +28,7 @@ contract Funds {
     }
 
     modifier onlyAdminOrFundOwner(uint256 _fundID) {
-        require(msg.sender == funds[_fundID].fundOwner || msg.sender == admin, "Not the right access");
+        require(msg.sender == funds[_fundID].fundOwner || msg.sender == owner(), "Not the right access");
         _;
     }
 
@@ -44,21 +37,22 @@ contract Funds {
         _;
     }
 
-    constructor() {
+    constructor() Ownable() {
         rewardTokenContract = new RewardToken("CHARITY", "TY");
-        admin = msg.sender;
         FundCounter = 0;
     }
 
     /// @dev Initializes new fund that is open for funding starting with 0 total funds and where msg.sender is the fund owner
     /// @param _name Name of fund
     /// @param _receiver Receiving address of funding for this fund
-    function createfund(string memory _name, address _receiver, string memory description) external {
-        funds.push(Fund(FundCounter, _name, true, msg.sender, _receiver, 0, description));
+    /// @param _description Key description of what this fund is about
+    function createfund(string memory _name, address _receiver, string memory _description) external {
+        funds.push(Fund(FundCounter, _name, true, msg.sender, _receiver, 0, _description));
         fundOwners[msg.sender] = FundCounter;
         FundCounter += 1;
     }
 
+    /// @dev User donates a certain amount of ETH to fund, for which the same amount of reward tokens are minted to user
     /// @param _fundID Unique ID of fund
     function donateToFund(uint256 _fundID) public payable {
         Fund storage fund = funds[_fundID];
@@ -67,27 +61,37 @@ contract Funds {
         rewardTokenContract.mint(msg.sender, msg.value);
     }
 
+    /// @dev Ends the funding and sends the collected ETH to specific receiver address of fund
+    /// @param _fundID Unique ID of fund
     function endFund(uint256 _fundID) external onlyAdminOrFundOwner(_fundID) fundActive(_fundID) {
         funds[_fundID].fundActive = false;
         withdrawFunding(_fundID);
     }
 
+    /// @dev Ends the funding and sends the collected ETH to specific receiver address of fund
+    /// @param _fundID Unique ID of fund
     function withdrawFunding(uint256 _fundID) internal {
         Fund storage fund = funds[_fundID];
-        (bool sent, bytes memory data) = fund.receiver.call{value: fund.totalFunded}("");
+        (bool sent, ) = fund.receiver.call{value: fund.totalFunded}("");
         require(sent, "Failed to send Ether");
     }
 
+    /// @dev Gets total amount funded of specific user for specific fund
+    /// @param funder Address of user
+    /// @param _fundID Unique ID of fund
     function getFunderAmount(address funder, uint256 _fundID) external view onlyFundOwner(_fundID) returns (uint256) {
         require(funders[funder][_fundID] > 0, "Funder not found");
         return funders[funder][_fundID];
     }
 
+    /// @dev Gets total amount funded of function caller for specific fund
+    /// @param _fundID Unique ID of fund
     function getOwnFundingAmount(uint256 _fundID) external view returns (uint256) {
         require(funders[msg.sender][_fundID] > 0, "No funds found");
         return funders[msg.sender][_fundID];
     }
 
+    /// @dev Gets total reward token balance of function caller
     function getTokenBalanceOf() external view returns (uint256) {
         return rewardTokenContract.balanceOf(msg.sender);
     } 
