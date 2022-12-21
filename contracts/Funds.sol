@@ -84,6 +84,12 @@ contract Funds is Ownable {
         return funders[funder][_fundID];
     }
 
+    /// @dev Gets specific fund
+    /// @param _fundID Unique ID of fund
+    function getFunds(uint256 _fundID) external view returns(Fund memory) {
+        return funds[_fundID];
+    }
+
     /// @dev Gets total amount funded of function caller for specific fund
     /// @param _fundID Unique ID of fund
     function getOwnFundingAmount(uint256 _fundID) external view returns (uint256) {
