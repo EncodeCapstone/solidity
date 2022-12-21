@@ -16,6 +16,7 @@ contract Funds is Ownable {
         address receiver; // Receiver address of funds
         uint256 totalFunded; // Total funding received
         string description; // Fund description
+        string ipfsUrl; // URL to the IPFS where the fund cover is stored
     }
 
     Fund[] public funds; // List of all funds
@@ -46,8 +47,8 @@ contract Funds is Ownable {
     /// @param _name Name of fund
     /// @param _receiver Receiving address of funding for this fund
     /// @param _description Key description of what this fund is about
-    function createfund(string memory _name, address _receiver, string memory _description) external {
-        funds.push(Fund(FundCounter, _name, true, msg.sender, _receiver, 0, _description));
+    function createfund(string memory _name, address _receiver, string memory _description, string memory _ipfsUrl) external {
+        funds.push(Fund(FundCounter, _name, true, msg.sender, _receiver, 0, _description, _ipfsUrl));
         fundOwners[msg.sender] = FundCounter;
         FundCounter += 1;
     }
@@ -88,6 +89,12 @@ contract Funds is Ownable {
     /// @param _fundID Unique ID of fund
     function getFunds(uint256 _fundID) external view returns(Fund memory) {
         return funds[_fundID];
+    }
+
+    /// @dev Gets IPFS URL of specific fund
+    /// @param _fundID Unique ID of fund
+    function getIPFS(uint256 _fundID) external view returns(string memory) {
+        return funds[_fundID].ipfsUrl;
     }
 
     /// @dev Gets total amount funded of function caller for specific fund

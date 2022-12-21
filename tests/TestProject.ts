@@ -7,6 +7,7 @@ import { Funds, Funds__factory } from "../typechain";
 const PROJECT_NAME = "Game";
 const PROJECT_DESCRIPTION = "This is to fund our game development";
 const DONATION_VALUE = ethers.utils.parseEther("10");
+const IPFS_URL = "";
 
 describe("Funds contract", async () => {
   let contract: Funds;
@@ -25,7 +26,7 @@ describe("Funds contract", async () => {
     console.log(`\nCrowd funding project contract deployed at ${contract.address}\n`);
 
     // Creates a fund
-    await contract.connect(projectOwner).createfund(PROJECT_NAME, projectOwner.address, PROJECT_DESCRIPTION);
+    await contract.connect(projectOwner).createfund(PROJECT_NAME, projectOwner.address, PROJECT_DESCRIPTION, IPFS_URL);
   });
 
   describe("When a new fund is started", async () => {
